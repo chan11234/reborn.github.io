@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REBORN PDF查看器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef, #f8f9fa);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        /* 初始页面样式 */
+        #initial-page {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .initial-content {
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eaeaea;
+            transition: all 0.3s ease;
+        }
+        
+        .initial-content:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .initial-title {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            letter-spacing: 3px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #1a237e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .initial-subtitle {
+            font-size: 1.4rem;
+            color: #7f8c8d;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+        
+        .poster-container {
+            margin: 30px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .poster-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+        
+        .poster-image {
+            max-width: 100%;
+            max-height: 60vh;
+            object-fit: contain;
+            display: block;
+        }
+        
+        .click-hint {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #3498db;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .click-hint i {
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        /* PDF查看页面样式 */
+        #pdf-page {
+            display: none;
+            width: 100%;
+            height: 100vh;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #eaeaea;
+            position: relative;
+            overflow: visible;
+            flex-shrink: 0;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #3498db, #e74c3c, #3498db);
+        }
+        
+        header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            letter-spacing: 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #1a237e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .logo-subtitle {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            letter-spacing: 1.5px;
+            margin-top: -8px;
+            font-weight: 500;
+        }
+        
+        #pdf-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 0;
+            font-size: 1.1rem;
+            background: rgba(240, 240, 240, 0.8);
+            border-radius: 30px;
+            width: 300px;
+            margin: 15px auto 0;
+            color: #444;
+            font-weight: 500;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .page-info {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .page-info i {
+            color: #3498db;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow: hidden;
+        }
+        
+        .portfolio2-section {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .pdf-container {
+            position: relative;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            width: 100%;
+            max-width: 1000px;
+            height: auto;
+            min-height: 700px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .pdf-container:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        #pdf-render {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            max-height: 85vh;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        #click-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 10;
+            cursor: pointer;
+        }
+        
+        .click-area {
+            flex: 1;
+            height: 100%;
+            transition: background 0.3s;
+        }
+        
+        .click-area.left:hover {
+            background: linear-gradient(90deg, rgba(52, 152, 219, 0.15), transparent);
+        }
+        
+        .click-area.right:hover {
+            background: linear-gradient(90deg, transparent, rgba(231, 76, 60, 0.15));
+        }
+        
+        #pdf-fallback {
+            width: 100%;
+            height: 80vh;
+            border: none;
+            display: none;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 15px;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: #555;
+            border: 1px solid #eaeaea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2rem;
+            color: #e74c3c;
+            display: none;
+            font-weight: 500;
+            background: rgba(255, 241, 240, 0.9);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 600px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 13px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
+            min-width: 150px;
+            justify-content: center;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #2980b9, #2573a7);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.35);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.25);
+        }
+        
+        .btn.secondary:hover {
+            background: linear-gradient(135deg, #c0392b, #a93226);
+            box-shadow: 0 6px 15px rgba(231, 76, 60, 0.35);
+        }
+        
+        .page-scale {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+            background: rgba(245, 245, 245, 0.9);
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .scale-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #555;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .scale-btn:hover {
+            background: #f8f8f8;
+            transform: scale(1.1);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+        }
+        
+        .scale-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+            min-width: 60px;
+            text-align: center;
+            color: #2c3e50;
+        }
+        
+        @media (max-width: 1100px) {
+            .pdf-container {
+                min-height: 650px;
+                max-width: 900px;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .pdf-container {
+                min-height: 550px;
+                max-width: 800px;
+            }
+            
+            header h1 {
+                font-size: 2.8rem;
+            }
+            
+            .initial-title {
+                font-size: 3rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.4rem;
+            }
+            
+            .logo-subtitle {
+                font-size: 1rem;
+            }
+            
+            #pdf-nav {
+                width: 100%;
+                max-width: 280px;
+                font-size: 1rem;
+            }
+            
+            .btn {
+                padding: 11px 20px;
+                font-size: 1rem;
+                min-width: 130px;
+            }
+            
+            .pdf-container {
+                min-height: 500px;
+                max-width: 95%;
+            }
+            
+            .initial-title {
+                font-size: 2.5rem;
+            }
+            
+            .initial-subtitle {
+                font-size: 1.2rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+            
+            header {
+                padding: 12px 0;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .pdf-container {
+                min-height: 400px;
+            }
+            
+            .controls {
+                gap: 12px;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                min-width: 120px;
+                font-size: 0.95rem;
+            }
+            
+            .page-scale {
+                padding: 8px 15px;
+            }
+            
+            .initial-title {
+                font-size: 2rem;
+            }
+            
+            .initial-subtitle {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 初始页面 -->
+    <div id="initial-page">
+        <div class="initial-content">
+            <h1 class="initial-title">REBORN</h1>
+            <p class="initial-subtitle">垃圾回收艺术装置及同名APP</p>
+            <div class="poster-container" onclick="showPDFPage()">
+                <img src="海报12.png" alt="REBORN Poster" class="poster-image">
+            </div>
+            <div class="click-hint">
+                <i class="fas fa-mouse-pointer"></i>
+                点击海报进入作品集
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF查看页面 -->
+    <div id="pdf-page">
+        <header>
+            <h1>REBORN</h1>
+            <div class="logo-subtitle">垃圾回收艺术装置与同名APP</div>
+            <nav id="pdf-nav">
+                <span class="page-info"><i class="fas fa-file-pdf"></i> 第 <span id="page-num">1</span> 页，共 <span id="page-count">?</span> 页</span>
+            </nav>
+        </header>
+
+        <main>
+            <section id="portfolio2" class="portfolio2-section">
+                <div id="status" class="status-message"></div>
+                
+                <div class="pdf-container">
+                    <canvas id="pdf-render"></canvas>
+                    <div id="click-overlay">
+                        <div class="click-area left"></div>
+                        <div class="click-area right"></div>
+                    </div>
+                    <embed id="pdf-fallback" src="portfolio2.pdf" type="application/pdf">
+                </div>
+                
+                <div class="controls">
+                    <button class="btn" id="prev-btn">
+                        <i class="fas fa-chevron-left"></i>
+                        上一页
+                    </button>
+                    <button class="btn secondary" id="next-btn">
+                        下一页
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="page-scale">
+                    <div class="scale-btn" id="zoom-out">
+                        <i class="fas fa-search-minus"></i>
+                    </div>
+                    <div class="scale-value" id="scale-value">100%</div>
+                    <div class="scale-btn" id="zoom-in">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 REBORN. All rights reserved. | 优雅的PDF查看体验</p>
+        </footer>
+    </div>
+
+    <script>
+        // 配置PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // 获取DOM元素
+        const canvas = document.getElementById('pdf-render');
+        const ctx = canvas.getContext('2d');
+        const pdfFallback = document.getElementById('pdf-fallback');
+        const pageNumEl = document.getElementById('page-num');
+        const pageCountEl = document.getElementById('page-count');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const statusEl = document.getElementById('status');
+        const clickOverlay = document.getElementById('click-overlay');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const scaleValueEl = document.getElementById('scale-value');
+        
+        // PDF状态变量
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+        let scale = 1.7; // 初始放大比例
+        
+        // 显示PDF页面
+        function showPDFPage() {
+            document.getElementById('initial-page').style.display = 'none';
+            document.getElementById('pdf-page').style.display = 'flex';
+            loadPDF('portfolio2.pdf');
+        }
+        
+        // 显示状态消息
+        function showStatus(message) {
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+        }
+        
+        // 隐藏状态消息
+        function hideStatus() {
+            statusEl.style.display = 'none';
+        }
+        
+        // 更新缩放显示
+        function updateScaleValue() {
+            scaleValueEl.textContent = `${Math.round(scale * 100)}%`;
+        }
+        
+        // 加载PDF文件
+        function loadPDF(url) {
+            showStatus('正在加载PDF文件...');
+            
+            // 尝试直接使用PDF.js加载
+            const directLoad = pdfjsLib.getDocument(url).promise;
+            
+            // 尝试使用fetch+Blob方式加载
+            const fetchLoad = fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('网络请求失败');
+                    return response.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    return pdfjsLib.getDocument(blobUrl).promise;
+                });
+            
+            // 尝试两种加载方式
+            Promise.any([directLoad, fetchLoad])
+                .then(function(pdfDoc_) {
+                    hideStatus();
+                    pdfDoc = pdfDoc_;
+                    pageCountEl.textContent = pdfDoc.numPages;
+                    renderPage(pageNum);
+                    updateScaleValue();
+                    
+                    // 隐藏备用PDF嵌入
+                    pdfFallback.style.display = 'none';
+                    
+                    // 更新按钮状态
+                    prevBtn.disabled = (pageNum <= 1);
+                    nextBtn.disabled = (pageNum >= pdfDoc.numPages);
+                })
+                .catch(function(error) {
+                    console.error('PDF加载失败，使用备用嵌入:', error);
+                    showStatus('使用备用模式加载PDF...');
+                    
+                    // 显示备用PDF嵌入
+                    setTimeout(() => {
+                        hideStatus();
+                        pdfFallback.style.display = 'block';
+                        
+                        // 隐藏PDF.js渲染元素
+                        canvas.style.display = 'none';
+                        clickOverlay.style.display = 'none';
+                        
+                        // 隐藏页码信息
+                        document.querySelector('.page-info').style.display = 'none';
+                    }, 1500);
+                });
+        }
+        
+        // 渲染指定页面
+        function renderPage(num) {
+            pageRendering = true;
+            
+            // 使用Promise获取页面
+            pdfDoc.getPage(num).then(function(page) {
+                // 获取容器尺寸
+                const container = document.querySelector('.pdf-container');
+                const containerWidth = container.clientWidth - 40; // 留出边距
+                
+                // 获取PDF页面原始尺寸
+                const viewport = page.getViewport({ scale: 1 });
+                const pdfRatio = viewport.width / viewport.height;
+                
+                // 计算最佳高度以保持比例
+                const targetWidth = Math.min(containerWidth, viewport.width * scale);
+                const targetHeight = targetWidth / pdfRatio;
+                
+                // 设置画布大小
+                canvas.height = targetHeight;
+                canvas.width = targetWidth;
+                
+                // 使用计算出的缩放比例
+                const renderViewport = page.getViewport({ scale: scale });
+                
+                // 设置渲染上下文
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: renderViewport
+                };
+                
+                // 渲染页面
+                const renderTask = page.render(renderContext);
+                
+                renderTask.promise.then(function() {
+                    pageRendering = false;
+                    pageNumEl.textContent = num;
+                    
+                    // 如果有等待中的页面渲染请求
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                    
+                    // 更新按钮状态
+                    prevBtn.disabled = (num <= 1);
+                    nextBtn.disabled = (num >= pdfDoc.numPages);
+                });
+            });
+        }
+        
+        // 切换到上一页
+        function prevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+        
+        // 切换到下一页
+        function nextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+        
+        // 缩放PDF
+        function zoomIn() {
+            scale += 0.1;
+            if (scale > 2.5) scale = 2.5;
+            queueRenderPage(pageNum);
+            updateScaleValue();
+        }
+        
+        function zoomOut() {
+            scale -= 0.1;
+            if (scale < 0.5) scale = 0.5;
+            queueRenderPage(pageNum);
+            updateScaleValue();
+        }
+        
+        // 将页面渲染添加到队列
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+        
+        // 事件监听器
+        prevBtn.addEventListener('click', prevPage);
+        nextBtn.addEventListener('click', nextPage);
+        zoomInBtn.addEventListener('click', zoomIn);
+        zoomOutBtn.addEventListener('click', zoomOut);
+        
+        clickOverlay.addEventListener('click', function(e) {
+            if (!pdfDoc) return;
+            
+            const rect = clickOverlay.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const width = rect.width;
+            
+            // 如果点击在左半边，显示上一页
+            if (x < width / 2) {
+                prevPage();
+            } else {
+                // 点击在右半边，显示下一页
+                nextPage();
+            }
+        });
+        
+        // 键盘导航
+        document.addEventListener('keydown', function(e) {
+            if (!pdfDoc) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'PageUp':
+                    prevPage();
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'PageDown':
+                    nextPage();
+                    e.preventDefault();
+                    break;
+                case '+':
+                case '=':
+                    zoomIn();
+                    e.preventDefault();
+                    break;
+                case '-':
+                    zoomOut();
+                    e.preventDefault();
+                    break;
+            }
+        });
+        
+        // 自适应调整PDF大小
+        window.addEventListener('resize', function() {
+            if (pdfDoc && !pageRendering) {
+                renderPage(pageNum);
+            }
+        });
+    </script>
+</body>
+</html>
